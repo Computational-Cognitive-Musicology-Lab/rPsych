@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<style>body{background-color:white;}</style>
+
+  <title>test experiment</title>
+  <script src="https://unpkg.com/jspsych@8.2.1"></script>
+  <link href="https://unpkg.com/jspsych@8.2.1/css/jspsych.css"/>
+  <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-html-button-response"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-audio-keyboard-response"></script>
+</head>
+<html>
+  <body></body>
+  <script>		
+		/* initialize jsPsych */
+		var jsPsych = initJsPsych({
+		    on_finish: function() {
+		    jsPsych.data.displayData();
+		    }
+		});
+		
+		
+		var welcome = {
+		    type: jsPsychHtmlKeyboardResponse,
+		    stimulus: "&lt;p&gt;Welcome to the experiment.&lt;/p&gt;",
+		    choices: ["Enter"],
+		    prompt: null,
+		    trial_duration: null,
+		    response_ends_trial: true,
+		    stimulus_duration: null,
+		};
+		
+		var consent = {
+		    type: jsPsychHtmlButtonResponse,
+		    stimulus: "&lt;p&gt;Here is the consent information.&lt;/p&gt;",
+		    choices: ['I consent to participate'],
+		    prompt: null,
+		    trial_duration: null,
+		    response_ends_trial: true,
+		    stimulus_duration: null,
+		    enable_button_after: 0,
+		};
+		
+		var block1_variables = [
+		             {AudioFile: "/home/nat/Bridge/Research/Projects/Rhythm/TheBackbeat/Stimuli/StimuliFiles/O_____O_________.wav", Type: "fuck"},
+		             {AudioFile: "/home/nat/Bridge/Research/Projects/Rhythm/TheBackbeat/Stimuli/StimuliFiles/O_____O___O_____.wav", Type: "you"},
+		];
+		
+		
+		var block1_trial_1 = {
+		    type: jsPsychAudioKeyboardResponse,
+		    stimulus: jsPsych.timelineVariable("AudioFile"),
+		    choices: ['m'],
+		    prompt: null,
+		    trial_duration: null,
+		    response_ends_trial: true,
+		    response_allowed_while_playing: true,
+		    trial_ends_after_audio: true,
+		};
+		
+		var block1 = {
+		   timeline: [block1_trial_1],
+		   timeline_variables: block1_variables,
+		   randomize_order: true
+		}
+		
+		var debrief = {
+		    type: jsPsychHtmlKeyboardResponse,
+		    stimulus: "Do you have any comments?",
+		    choices: ["Enter"],
+		    prompt: null,
+		    trial_duration: null,
+		    response_ends_trial: true,
+		    stimulus_duration: null,
+		};
+		
+		var timeline = [welcome, consent, block1, debrief];
+		
+		/* start the experiment */
+		jsPsych.run(timeline)
+		</script>
+</html>
+</html>
