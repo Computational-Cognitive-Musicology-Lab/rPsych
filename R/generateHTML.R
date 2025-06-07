@@ -12,7 +12,7 @@ makeExperiment <- function(experiment_title, filename = 'interface.html', ...) {
   exprs <- rlang::enexprs(...)
   rlang::expr(generateJS(!!!exprs)) |>
     rlang::eval_tidy(data = htmltools::tags) -> js
-
+  
   list2env(htmltools::tags, envir = rlang::current_env())
 
   plugins <- lapply(js$plugin,
@@ -21,12 +21,12 @@ makeExperiment <- function(experiment_title, filename = 'interface.html', ...) {
     do.call('head',
             c(list(title(experiment_title),
                    script(src = jsPsych$source),
-                   link(href = jsPsych$css)),
+                   link(href = jsPsych$css, rel = 'stylesheet')),
               plugins)),
     body(),
-    script(js$js)
+    script(HTML(js$js))
   ) |>
-    save_html(file = filename )
+    save_html(file = filename)
 
   invisible(filename)
 

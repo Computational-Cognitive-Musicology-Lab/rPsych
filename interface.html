@@ -6,7 +6,7 @@
 
   <title>test experiment</title>
   <script src="https://unpkg.com/jspsych@8.2.1"></script>
-  <link href="https://unpkg.com/jspsych@8.2.1/css/jspsych.css"/>
+  <link href="https://unpkg.com/jspsych@8.2.1/css/jspsych.css" rel="stylesheet"/>
   <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response"></script>
   <script src="https://unpkg.com/@jspsych/plugin-html-button-response"></script>
   <script src="https://unpkg.com/@jspsych/plugin-audio-keyboard-response"></script>
@@ -24,23 +24,29 @@
 		
 		var welcome = {
 		    type: jsPsychHtmlKeyboardResponse,
-		    stimulus: "&lt;p&gt;Welcome to the experiment.&lt;/p&gt;",
+		    stimulus: "<p>Welcome to the experiment.</p>",
 		    choices: ["Enter"],
 		    prompt: null,
 		    trial_duration: null,
-		    response_ends_trial: true,
+		    response_ends_trial: ["true"],
 		    stimulus_duration: null,
+		    render_on_canvas: ["true"],
+		    response_allowed_while_playing: ["true"],
+		    trial_ends_after_audio: ["false"],
 		};
 		
 		var consent = {
 		    type: jsPsychHtmlButtonResponse,
-		    stimulus: "&lt;p&gt;Here is the consent information.&lt;/p&gt;",
-		    choices: ['I consent to participate'],
+		    stimulus: "<p>Here is the consent information.</p>",
+		    choices: ["I consent to participate"],
 		    prompt: null,
 		    trial_duration: null,
-		    response_ends_trial: true,
+		    response_ends_trial: ["true"],
 		    stimulus_duration: null,
-		    enable_button_after: 0,
+		    render_on_canvas: ["true"],
+		    response_allowed_while_playing: ["true"],
+		    trial_ends_after_audio: ["false"],
+		    enable_button_after: ["0"],
 		};
 		
 		var block1_variables = [
@@ -52,12 +58,14 @@
 		var block1_trial_1 = {
 		    type: jsPsychAudioKeyboardResponse,
 		    stimulus: jsPsych.timelineVariable("AudioFile"),
-		    choices: ['m'],
+		    choices: ["m","l"],
 		    prompt: null,
 		    trial_duration: null,
-		    response_ends_trial: true,
-		    response_allowed_while_playing: true,
-		    trial_ends_after_audio: true,
+		    response_ends_trial: ["false"],
+		    stimulus_duration: null,
+		    render_on_canvas: ["true"],
+		    response_allowed_while_playing: ["true"],
+		    trial_ends_after_audio: ["true"],
 		};
 		
 		var block1 = {
@@ -72,8 +80,11 @@
 		    choices: ["Enter"],
 		    prompt: null,
 		    trial_duration: null,
-		    response_ends_trial: true,
+		    response_ends_trial: ["true"],
 		    stimulus_duration: null,
+		    render_on_canvas: ["true"],
+		    response_allowed_while_playing: ["true"],
+		    trial_ends_after_audio: ["false"],
 		};
 		
 		var timeline = [welcome, consent, block1, debrief];

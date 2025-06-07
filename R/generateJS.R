@@ -22,9 +22,6 @@ generateJS <- function(...) {
   )
 
   lines <- paste0("\t\t", lines)
-  lines <- lines |>
-    str_replace_all('FALSE', 'false') |>
-    str_replace_all("TRUE", "true")
 
   list(js = paste(lines, collapse = '\n'),
        pluginsUsed = items$plugins)
@@ -33,7 +30,7 @@ generateJS <- function(...) {
 
 
 # make
-responseTypes <- c('key', 'slider', 'textbox', 'button')
+responseTypes <- c('keypress', 'slider', 'textbox', 'button')
 stimulusTypes <- c('text', 'audio', 'image', 'video')
 
 trialTypes <- expand.grid(responseType = responseTypes, #, 'likert', 'mpc'),
@@ -51,54 +48,90 @@ arguments <- c('labels', 'button_label', 'choices', 'prompt',
     )
 
 trialTypes |>
-  mutate(labels = ifelse(responseType == 'slider', '["Enter"]', NA),
+  mutate(labels = ifelse(responseType == 'slider', "Enter", NA),
          button_label = ifelse(responseType == 'slider', 'Continue', NA),
-         choices = ifelse(responseType %in% c('button', 'key'), '["Enter"]', NA),
+         choices = ifelse(responseType %in% c('button', 'keypress'), "Enter", NA),
          prompt = "null",
          trial_duration = "null",
-         response_ends_trial = 'true',
+         response_ends_trial = TRUE,
          stimulus_duration = ifelse(stimulusType %in% c('image', 'text'), 'null', NA),
          min = ifelse(responseType == 'slider', 0, NA),
          max = ifelse(responseType == 'slider', 100, NA),
          slider_start = ifelse(responseType == 'slider', 50, NA),
          step = ifelse(responseType == 'slider', 1, NA),
          slider_width = ifelse(responseType == 'slider', 1, NA),
-         require_movement = ifelse(responseType == 'slider', 'false', NA),
-         render_on_canvas = ifelse(stimulusType == 'image', 'true', NA),
-         response_allowed_while_playing = ifelse(stimulusType == 'audio', 'true', NA),
-         trial_ends_after_audio = ifelse(stimulusType == 'audio' & responseType %in% c('key', 'button'), 'false', NA),
+         require_movement = ifelse(responseType == 'slider', FALSE, NA),
+         render_on_canvas = ifelse(stimulusType == 'image', TRUE, NA),
+         response_allowed_while_playing = ifelse(stimulusType == 'audio', TRUE, NA),
+         trial_ends_after_audio = ifelse(stimulusType == 'audio' & responseType %in% c('keypress', 'button'), FALSE, NA),
          enable_button_after = ifelse(responseType == 'button', 0, NA)
          ) -> trialTypes
 
 
+responseArgs <- setNames(lapply(responseTypes,
+                       \(type) {
+                         trialTypes |>
+                           filter(responseType == type) |>
+                           select(-responseType, -stimulusType) |>
+                           as.list() |>
+                           lapply(FUN = \(x) { 
+                             if (all(is.na(x))) return(NA)
+                             
+                             x <- x[which(!is.na(x))[1]]
+                             if (x != 'null') x
+                             }) -> args
+                         
+                         args[!sapply(args, \(x) length(x) > 0 && is.na(x))]
+                         
+                         
+                       }), responseTypes)
 
-
+stimulusArgs <- setNames(lapply(responseTypes,
+                                \(type) {
+                                  setNames(lapply(stimulusTypes,
+                                                  \(stim) {
+                                                    trialTypes |>
+                                                      filter(responseType == type & stimulusType == stim) |>
+                                                      select(-responseType, -stimulusType) |>
+                                                      as.list() |>
+                                                      Filter(f = Negate(is.na)) |>
+                                                      lapply(FUN = \(x) { 
+                                                        if (x != 'null') x
+                                                      }) 
+                                                    
+                                                  }), stimulusTypes)
+                                  
+                                }), responseTypes)
 
 makeResponseFunc <- function(response_type) {
-
-  function(text, audio, image, video, ...) {
+ 
+  formals <- responseArgs[[response_type]]
+  extraArgNames <- names(formals)
+  formals <- c(alist(text = , audio = , image = , video = ),
+               formals)
+  
+  body <- rlang::expr({
 
     stimulus_type <- c(if (!missing(text)) 'text',
                        if (!missing(audio)) 'audio',
                        if (!missing(image)) 'image',
                        if (!missing(video)) 'video')[1]
 
-    stimulus <- paste0('"', get(stimulus_type), '"')
+    stimulus <- paste0('"', as.character(get(stimulus_type)), '"')
 
-    trialTypes |>
-      filter(responseType == response_type & stimulusType == stimulus_type) |>
-      select(-responseType, -stimulusType) |>
-      as.list() |>
-      Filter(f = Negate(is.na)) -> allowed_arguments
+    arguments <- stimulusArgs[[response_type]][[stimulus_type]]
+    
+    arguments <- setNames(list(!!!(rlang::syms(extraArgNames))), extraArgNames)
 
-
-    given_arguments <- list(...)
-    given_arguments <- if (is.null(names(given_arguments))) list() else given_arguments[names(given_arguments) != '']
-    given_arguments <- lapply(given_arguments, as.character)
-
+    arguments <- lapply(arguments, parseArg)
+    arguments <- unlist(Map(arguments, names(arguments),
+                            f = \(arg, name) {
+                              paste0(name, ": ", arg)
+                            }))
+    
     # ID appropriate plug in
     response <- switch(response_type,
-                       key = 'keyboard',
+                       keypress = 'keyboard',
                        response_type)
     stimulus_type <- switch(stimulus_type,
                        text = 'html',
@@ -108,23 +141,12 @@ makeResponseFunc <- function(response_type) {
     plugin <- paste0(stimulus_type, '-', response, '-', 'response')
 
     type <- paste0('jsPsych', plugin  |> str_to_title() |> str_remove_all('-') )
-
-    if (any(!names(given_arguments) %in% names(allowed_arguments))) {
-      stop(call. = FALSE,
-           "The arguments",
-           paste(setdiff(names(given_arguments), names(allowed_arguments)), collapse = ', '),
-           "are not valid arguments for a ", plugin, "jsPsych plugin.")
-    }
-
-
-    allowed_arguments[names(given_arguments)] <- given_arguments
-
-    arguments <- unlist(Map(allowed_arguments, names(allowed_arguments),
-                            f = \(arg, name) {
-
-                              if (length(arg) > 1) arg <- paste0("[", paste(arg, collapse = ','), ']')
-                              paste0(name, ": ", arg)
-                            }))
+    # if (any(!names(given_arguments) %in% names(allowed_arguments))) {
+    #   stop(call. = FALSE,
+    #        "The arguments",
+    #        paste(setdiff(names(given_arguments), names(allowed_arguments)), collapse = ', '),
+    #        "are not valid arguments for a ", plugin, "jsPsych plugin.")
+    # }
 
 
     f <- function(name, timeline = FALSE) {
@@ -142,7 +164,9 @@ makeResponseFunc <- function(response_type) {
 
     list(func = f, type = type, plugin = plugin)
 
-  }
+  })
+  
+  rlang::new_function(formals, body)
 }
 
 #' @export
@@ -203,17 +227,34 @@ interface <- function(...) {
 }
 ##
 
+parseArg <- function(arg) {
+  if (is.null(arg)) return('null')
+  
+  arg <- gsub('TRUE', 'true', arg)
+  arg <- gsub('FALSE', 'false', arg)
+  
+  if (inherits(arg, 'shiny.tag')) return(as.character(arg))
+  if (!all(grepl('[0-9]+(\\.[0-9]*)', arg))) {
+    arg <- paste0('"', arg, '"')
+  }
+  
+  paste0('[', paste(arg, collapse = ','), ']')
+}
+
+
 # idea:
 stim_table <- tibble(AudioFile = c("/home/nat/Bridge/Research/Projects/Rhythm/TheBackbeat/Stimuli/StimuliFiles/O_____O_________.wav",
                                    "/home/nat/Bridge/Research/Projects/Rhythm/TheBackbeat/Stimuli/StimuliFiles/O_____O___O_____.wav"), Type = c("fuck", "you"))
 #
 #
-makeExperiment("test experiment",
-  welcome = response$key(text = p("Welcome to the experiment.")),
-  consent = response$button(text = p("Here is the consent information."),
-                            choices = "['I consent to participate']"),
-  block1 = block(stimuli.table = stim_table,
-                 trials = response$key(audio = "AudioFile", choices = "['m']", trial_ends_after_audio = TRUE)),
-  debrief = response$key(text = "Do you have any comments?")
-) |> run()
+# makeExperiment("test experiment",
+#   welcome = response$key(text = p("Welcome to the experiment.")),
+#   consent = response$button(text = p("Here is the consent information."),
+#                             choices = "I consent to participate"),
+#   block1 = block(stimuli.table = stim_table,
+#                  trials = response$key(audio = "AudioFile", response_ends_trial = FALSE,
+#                                        choices = c("m", 'l'), trial_ends_after_audio = TRUE)),
+#   debrief = response$key(text = "Do you have any comments?")
+# ) |> run()
+
 
