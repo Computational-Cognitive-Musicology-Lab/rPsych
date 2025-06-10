@@ -25,7 +25,7 @@ var jsPsych = initJsPsych({
 /* preload audio/video/image files */
 var preload = {
     type: jsPsychPreload,
-audio: ["32-211203_1538.wav"],
+audio: ["32-211203_1538.wav", "32-211203_1545.wav"],
 };
 
 var Welcome = {
@@ -49,7 +49,8 @@ var Consent = {
 
 /* Stimuli used in "Block1" block */
 var Block1_stimuli = [
-                      {Audio: "32-211203_1538.wav"},
+                      {Audio: "32-211203_1538.wav", Other: "First"},
+                      {Audio: "32-211203_1545.wav", Other: "Second"},
 ];
 
 /* Trial used in "Block1" block */
@@ -71,6 +72,9 @@ var Block1 = {
     timeline: [Block1_Z],
     timeline_variables: Block1_stimuli,
     randomize_order: false,
+    data: {
+          Other: jsPsych.timelineVariable("Other")
+    },
 };
 
 var timeline = [preload, Welcome, Consent, Block1];

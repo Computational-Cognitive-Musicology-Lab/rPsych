@@ -186,13 +186,22 @@ block <- function(stimuli, ..., randomize_order = FALSE) {
   trials <- list(...)
   if (any(!sapply(trials, inherits, what = 'trial'))) stop('The block() function can only be provided full trial objects, ',
                                                            'which means you need both a stimulus() and a response() for each trial.')
-  if (is.null(names(trials)) || any(names(trials) == '')) stop("Each trial item in a block must be named", call. = FALSE)
+  if (is.null(names(trials)) || any(names(trials) == '')) stop("Each trial item in a block must be named.", call. = FALSE)
   if (nrow(stimuli) == 0 || ncol(stimuli) == 0) stop("The stimuli table provided to block() cannot be empty.")
   
+  args <- list(randomize_order = tolower(randomize_order))
+  
+  timelineVar <- unlist(lapply(trials, \(trial) trial@Args$stimulus)) |> unique()
+  dataVar <-  setdiff(names(stimuli), timelineVar)
+  if (length(dataVar)) {
+    args$data <- paste0('{\n', 
+                        '          ', paste(paste0(dataVar, ': jsPsych.timelineVariable("', dataVar, '")'), collapse = ',\n    '),
+                        '\n    }')
+  }
   
   
   new('block', Name = 'block', Trials = trials, 
-      Stimuli = stimuli, Args = list(randomize_order = tolower(randomize_order)))
+      Stimuli = stimuli, Args = args)
 }
 
 
