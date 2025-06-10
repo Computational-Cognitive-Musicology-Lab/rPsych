@@ -76,11 +76,14 @@ block2js <- function(block) {
 }
 
 savefunc <- c('/* function for saving data at the end */',
-             'function saveData(name, data){',
+             'function saveData(data, status){',
+             '    var date = new Date(Date.now());',
+             '    var timestamp = date.toLocaleDateString();',
+             "    timestamp = timestamp.replaceAll('/', '-') + '_' + date.getHours() + ':' + date.getMinutes();",
              '    var xhr = new XMLHttpRequest();',
              "    xhr.open('POST', 'write_data.php');", # // 'write_data.php' is the path to the php file
              "    xhr.setRequestHeader('Content-Type', 'application/json');",
-             "    xhr.send(JSON.stringify({filedata: data}));",
+             "    xhr.send(JSON.stringify({filedata: data, filename: 'response_data/' + status + 'Session_' + timestamp + '.csv'}));",
              '}')
 
 experiment2js <- function(experiment, preloadedFiles) {
@@ -89,7 +92,8 @@ experiment2js <- function(experiment, preloadedFiles) {
     '',
     "/* initialize jsPsych */",
     "var jsPsych = initJsPsych({",
-    "    on_finish: function() {  saveData(jsPsych.data.get().csv()); },",
+    "    on_finish: function() {  saveData(jsPsych.data.get().csv(), 'complete'); },",
+    "    on_close: function() { saveData(jsPsych.data.get().csv(), 'incomplete'); },",
     "    show_progress_bar: true",
     "});")
   parts <- lapply(experiment@Parts,

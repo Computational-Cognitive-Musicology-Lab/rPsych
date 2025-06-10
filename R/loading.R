@@ -1,3 +1,7 @@
+extensions <- list(audio = c('\\.wav$', '\\.mp3$'),
+                   video = c('\\.mp4$', '\\.ogg$', '\\.webm$'),
+                   image = c('\\.png$', '\\.jpg$', '\\.jpeg$'))
+
 setGeneric('loadFiles', function(object, directory, stimuliTable) NULL)
 
 setMethod('loadFiles', 'trial',
@@ -5,7 +9,7 @@ setMethod('loadFiles', 'trial',
             if (grepl('Audio|Video|Image', object@Type)) {
               originalFile <- object@Args$stimulus
               if (!is.null(stimuliTable)) {
-                if (!originalFile  %in% names(stimuliTable)) {
+                if (!originalFile  %in% names(stimuliTable) && any(sapply(unlist(extensions), \(ext) str_detect(originalFile, ext)))) {
                   object@Args$stimulus <- paste0('stimuli', .Platform$file.sep, basename(originalFile))
                   originalFile <- c()
                 }
@@ -59,9 +63,7 @@ setMethod('loadFiles', 'experiment',
             
             
             # prepare the preload js, and copy files to the experiment directory
-            extensions <- list(audio = c('\\.wav$', '\\.mp3$'),
-                               video = c('\\.mp4$', '\\.ogg$', '\\.webm$'),
-                               image = c('\\.png$', '\\.jpg$', '\\.jpeg$'))
+
             
             if (length(originalFiles)) {
               object@Parts <- lapply(parts, '[[', i = 'object')
