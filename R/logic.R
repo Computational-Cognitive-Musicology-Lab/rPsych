@@ -1,0 +1,243 @@
+#####################################################################################-
+### This file defines some (very simple) objects representing response items,
+### stimuli, trials, blocks, and experiments.
+#####################################################################################-
+
+# preamble ----
+
+## define trial types and associated arguments ----
+
+
+### response/stimulus
+trialTypes <- c('keypress/audio', 'button/audio', 'slider/audio',
+                'audio/text', 'button/text', 'keypress/text', 'slider/text', 'video/text',
+                'button/image', 'keypress/image', 'slider/image',
+                'samedifferent/text', 'samedifferent/image',
+                'video/button', 'video/keypress', 'video/slider') |>
+  strsplit(split = '/') |>
+  do.call(what = 'rbind') |>
+  as.data.frame() |> 
+  setNames(c('response', 'stimulus'))
+
+responseArgs <- list(audio = list(show_done_button = TRUE, allow_playback = FALSE, 
+                                  recording_duration = 2000),
+                     button = list(choices = c(), response_ends_trial = TRUE,
+                                   enable_button_after = 0),
+                     keypress = list(choices = c(), response_ends_trial = TRUE),
+                     slider = list(prompt = NULL, button_label = "Continue",
+                                   min = 0, max = 100, start = 50, slider_start = 50,
+                                   step = 1, slider_width = NULL,
+                                   require_movement = FALSE,
+                                   response_ends_trial = TRUE),
+                     samedifferent = list(answer = c('same', 'different'),
+                                          same_key = 'q',
+                                          different_key = 'p',
+                                          first_stim_duration = 1000,
+                                          gap_duration = 500,
+                                          second_stim_duration = 1000))
+
+stimulusArgs <- list(audio = alist(stimulus = , prompt = NULL, stimulus_duration = NULL,
+                                  trial_duration = NULL, trial_ends_after_audio = FALSE, 
+                                  response_allowed_while_playing = TRUE),
+                     image = alist(stimulus =, prompt = NULL, stimulus_height = NULL, stimulus_width = NULL,
+                                  maintain_aspect_ratio = TRUE,
+                                  stimulus_duration = NULL, trial_duration = NULL),
+                     text = alist(stimulus =,  prompt = NULL, stimulus_duration = NULL,
+                                 trial_duration = NULL),
+                     video = alist(stimulus = , show_done_button = TRUE, allow_playback = TRUE,
+                                  recording_duration = 2000)) 
+
+valid_stimuli <- function(response) {
+  trialTypes$stimulus[trialTypes$response == response@Type]
+}
+
+valid_response <- function(stimulus) {
+  trialTypes$response[trialTypes$stimulus == stimulus@Type]
+}
+
+# response and stimulus ----
+
+## class definitions ----
+
+#' @export
+setClass('response', slots = c(Type = 'character', Args = 'list'))
+#' @export
+setClass('stimulus', slots = c(Type = 'character', Args = 'list'))
+
+### show methods ----
+
+#' @export
+setMethod('show', 'response',
+          \(object) {
+            cat(object@Type, ' response() item:\n',
+                '\tThis can be combined with ', valid_stimuli(object) |> paste(collapse = '/'), ' stimulus() objects.\n', 
+                '\tArguments:\n\t\t',
+                paste(paste0(names(object@Args), ' = ', sapply(object@Args, args2js)), collapse = '\n\t\t'), '\n', 
+                sep = '')
+            
+          })
+
+#' @export
+setMethod('show', 'stimulus',
+          \(object) {
+            cat(object@Type, ' stimulus() item:\n',
+                '\tThis can be combined with ', valid_response(object) |> paste(collapse = '/'), ' response() objects.\n', 
+                '\tArguments:\n\t\t',
+                paste(paste0(names(object@Args), ' = ', sapply(object@Args, args2js)), collapse = '\n\t\t'), '\n', 
+                sep = '')
+          })
+
+## actual user functions ----
+
+#' @export
+response <- Map(responseArgs, names(responseArgs),
+                f = \(args, name) {
+                  rlang::new_function(as.pairlist(args),
+                                      rlang::expr(list(!!!(setNames(rlang::syms(names(args)), names(args)))) |>
+                                                    new(Class = 'response', Type = !!(name), Args = _)))
+                }) |> setNames(names(responseArgs))
+
+#' @export
+stimulus <- Map(stimulusArgs, names(stimulusArgs),
+                f = \(args, name) {
+                  rlang::new_function(as.pairlist(args),
+                                      rlang::expr(list(!!!(setNames(rlang::syms(names(args)), names(args)))) |>
+                                                    new(Class = 'stimulus', Type = !!(name), Args = _)))
+                }) |> setNames(names(stimulusArgs))
+
+
+# trials  ----
+
+### trials are a combination of stimulus and response ###
+
+## class definition ----
+
+setClass('trial', slots = c(Name = 'character', 
+                            Plugin = 'character',
+                            Type = 'character',
+                            Args = 'list'))
+
+### show method ----
+
+#' @export
+setMethod('show', 'trial',
+          \(object) cat(trial2js(object), sep = '\n'))
+
+## creating trials ----
+
+## this is to go from my response/stimulus names to the more verbose names used by jsPsych
+get_jsPsych_type <- function(response, stimulus) {
+  response <- switch(response,  keypress = 'keyboard', response)
+  stimulus <- switch(stimulus, text = 'html', stimulus)
+  
+  type <- paste0('jsPsych', stringr::str_to_title(stimulus), stringr::str_to_title(response), 
+                 'Response')
+  plugin <- paste0(stimulus, '-', response, '-', 'response')
+  
+  list(Type = type, Plugin = plugin)
+  
+}
+
+### making trials by combining stimulus and response objects ----
+
+#' @export
+setMethod('+', c('response', 'stimulus'),
+          \(e1, e2) {
+            type <- get_jsPsych_type(e1@Type, e2@Type)
+            new('trial', Name = 'Trial', Type = type$Type, Plugin = type$Plugin,
+                Args = c(e1@Args, e2@Args))
+            
+          })
+
+#' @export
+setMethod('+', c('stimulus', 'response'),
+          \(e1, e2) e2 + e1)
+
+
+### forcing text stimulus to trial ----
+
+text2trial <- function(stimulus) {
+  args <- stimulus@Args
+  if (!'choices' %in% names(args)) args$choices <- 'Continue'
+  
+  new('trial', Name = 'Instructions', Plugin = 'html-button-response', Type = 'jsPsychHtmlButtonResponse',
+      Args = args)
+}
+
+
+
+
+# blocks ----
+
+## class definition ----
+
+#' @export
+setClass('block', slots = c(Name = 'character', Trials = 'list', Stimuli = 'data.frame', Args = 'list'))
+
+#' @export
+setMethod('show', 'block',
+          \(object) cat(block2js(object), sep = '\n'))
+
+## making blocks with block() ----
+
+
+#' @export
+block <- function(stimuli, ..., randomize_order = FALSE) {
+  trials <- list(...)
+  if (any(!sapply(trials, inherits, what = 'trial'))) stop('The block() function can only be provided full trial objects, ',
+                                                           'which means you need both a stimulus() and a response() for each trial.')
+  if (is.null(names(trials)) || any(names(trials) == '')) stop("Each trial item in a block must be named", call. = FALSE)
+  if (nrow(stimuli) == 0 || ncol(stimuli) == 0) stop("The stimuli table provided to block() cannot be empty.")
+  
+  
+  
+  new('block', Name = 'block', Trials = trials, 
+      Stimuli = stimuli, Args = list(randomize_order = tolower(randomize_order)))
+}
+
+
+
+# experiment ----
+
+setClass('experiment', slots = c(Title = 'character', Author = 'character', DateCreated = 'Date', Parts = 'list'))
+
+ 
+#' @export
+experiment <- function(..., title = 'Unnamed jsPsych Experiment', author = '') {
+  
+  parts <- list(...)
+  if (is.null(names(parts)) || any(names(parts) == '')) stop("When creating an experiment(), each element of the experiment",
+                                                            "must be explicitely named.", .call = FALSE)
+  
+  parts <- lapply(parts, \(part) if (class(part) == 'stimulus' && part@Type == 'text') text2trial(part) else part)
+  if (!all(sapply(parts, \(part) class(part) %in% c('trial', 'block')))) stop('rPsych experiments must be constructed from only trial and block objects, created using (response() + stimulus()) or block().', call. = FALSE)
+  parts <- Map(\(part, name) { part@Name <- name; part}, parts, names(parts))
+  
+  new('experiment', Title = title, Author = author, DateCreated = Sys.Date(),  Parts = parts)
+}
+
+### show method ----
+
+setMethod('show', 'experiment', \(object) cat(experiment2js(object), sep = '\n'))
+
+
+# idea:
+stim_table <- tibble(AudioFile = c("/home/nat/Bridge/Research/Projects/Rhythm/TheBackbeat/Stimuli/StimuliFiles/O_____O_________.wav",
+                                   "/home/nat/Bridge/Research/Projects/Rhythm/TheBackbeat/Stimuli/StimuliFiles/O_____O___O_____.wav"), Type = c("fuck", "you"))
+#
+#
+# makeExperiment("test experiment",
+  # welcome = response$key(text = p("Welcome to the experiment.")),
+  # consent = response$button(text = p("Here is the consent information."),
+                            # choices = "I consent to participate"),
+  # block1 = block(stimuli.table = stim_table,
+                 # trials = response$key(audio = "AudioFile", response_ends_trial = FALSE,
+                                       # choices = c("m", 'l'), trial_ends_after_audio = TRUE)),
+  # debrief = response$key(text = "Do you have any comments?")
+# ) |> run()
+
+# experiment('Test experiment',
+#            welcome = stimulus$text(p('Welcome to the experiment,')),
+#            consent = stimulus$text(p("Here is the consent information.")) + response$button(choices = "I consent"))
+
+

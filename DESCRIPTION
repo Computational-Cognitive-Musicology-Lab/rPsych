@@ -14,6 +14,11 @@ Description: Specify an experimental interface for human-subject research experi
     The package simply compiles to html/js which uses the jsPsych package.
 License: What license is it under?
 Encoding: UTF-8
+Collate:
+  logic.R
+  js.R
+  html.R
+  loading.R
 LazyData: true
 Depends: htmltools, dplyr, stringr, rlang
 Roxygen: list(markdown = TRUE)

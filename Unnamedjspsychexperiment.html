@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<style>body{background-color:white;}</style>
+
+  <title>Unnamed jsPsych Experiment</title>
+  <script src="https://unpkg.com/jspsych@8.2.1"></script>
+  <link href="https://unpkg.com/jspsych@8.2.1/css/jspsych.css" rel="stylesheet"/>
+  <script src="https://unpkg.com/@jspsych/plugin-html-button-response"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-audio-button-response"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-preload"></script>
+</head>
+<html>
+  <body></body>
+  <script>/* Created on 2025-06-09.*/
+
+/* initialize jsPsych */
+var jsPsych = initJsPsych({
+    on_finish: function() {
+    jsPsych.data.displayData();
+    }
+});
+
+/* preload audio/video/image files */
+var preload = {
+    type: jsPsychPreload,
+audio: ["32-211203_1538.wav"],
+};
+
+var Welcome = {
+    type: jsPsychHtmlButtonResponse,
+    stimulus: ["Welcome to our experiment!"],
+    prompt: null,
+    stimulus_duration: null,
+    trial_duration: null,
+    choices: ["Continue"],
+};
+var Consent = {
+    type: jsPsychHtmlButtonResponse,
+    stimulus: ["Consent content"],
+    prompt: null,
+    stimulus_duration: null,
+    trial_duration: null,
+    choices: ["Continue"],
+};
+/* The following sections define an experimental block called "Block1" */
+/* This includes defining stimuli for the block, as well as the trial that happens inside the block */
+
+/* Stimuli used in "Block1" block */
+var Block1_stimuli = [
+                      {Audio: "32-211203_1538.wav"},
+];
+
+/* Trial used in "Block1" block */
+var Block1_Z = {
+    type: jsPsychAudioButtonResponse,
+    choices: ["like", "don't like"],
+    response_ends_trial: true,
+    enable_button_after: [0],
+    stimulus: jsPsych.timelineVariable("Audio"),
+    prompt: null,
+    stimulus_duration: null,
+    trial_duration: null,
+    trial_ends_after_audio: false,
+    response_allowed_while_playing: true,
+};
+
+/* Actual definition of "Block1" block */
+var Block1 = {
+    timeline: [Block1_Z],
+    timeline_variables: Block1_stimuli,
+    randomize_order: false,
+};
+
+var timeline = [preload, Welcome, Consent, Block1];
+
+/* start the experiment */
+jsPsych.run(timeline)
+</script>
+</html>
+</html>
