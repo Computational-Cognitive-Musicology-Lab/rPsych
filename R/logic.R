@@ -212,7 +212,7 @@ setClass('experiment', slots = c(Title = 'character', Author = 'character', Date
 
  
 #' @export
-experiment <- function(..., title = 'Unnamed jsPsych Experiment', author = '') {
+experiment <- function(..., title = 'Unnamed Experiment', author = '') {
   
   parts <- list(...)
   if (is.null(names(parts)) || any(names(parts) == '')) stop("When creating an experiment(), each element of the experiment",

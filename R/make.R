@@ -26,11 +26,11 @@ make <- function(experiment, directory = experiment@Title)  {
   if (class(experiment) != 'experiment') stop("The first argument to make() must be an experiment object, created with experiment().")
 
   # Prepping directory
-  directory <- directory |> str_remove_all('\\s*') |> str_to_title()
+  directory <- directory |> str_to_title() |> str_replace_all('\\s', '_')
   filename <- paste0(directory, .Platform$file.sep, 'index.html')
   if (dir.exists(directory)) {
-    if (!(readline(paste0('A directory called "', directory, '".', "Do you want to overwrite it's content?",
-            '\n\t\t Type "y" then press "Enter" to overwrite. Otherwise, just press "Enter."')) |>
+    if (!(readline(paste0('A directory called "', directory, '".', " Do you want to overwrite it's content?",
+            '\n\t\t Type "y(es)" and press "Enter" to overwrite. Otherwise, just press "Enter."\n')) |>
       str_remove_all('\\s*') |>
       tolower() |>
       pmatch('yes', nomatch = 0))) return(NULL)
