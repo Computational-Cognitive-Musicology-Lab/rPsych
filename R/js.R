@@ -76,24 +76,34 @@ block2js <- function(block) {
 }
 
 savefunc <- c('/* function for saving data at the end */',
+             'function padZero(date) {',
+             '    return ("0" + date).slice(-2);',
+             '}',
              'function saveData(data, status){',
              '    var date = new Date(Date.now());',
-             '    var timestamp = date.toLocaleDateString();',
-             "    timestamp = timestamp.replaceAll('/', '-') + '_' + date.getHours() + ':' + date.getMinutes();",
-             '    var xhr = new XMLHttpRequest();',
-             "    xhr.open('POST', 'write_data.php');", # // 'write_data.php' is the path to the php file
-             "    xhr.setRequestHeader('Content-Type', 'application/json');",
-             "    xhr.send(JSON.stringify({filedata: data, filename: 'response_data/' + status + 'Session_' + timestamp + '.csv'}));",
+             '    var timestamp = date.toLocaleDateString();', # slice nosense is to pad 
+             "    timestamp = timestamp.replaceAll('/', '-') + '_' + padZero(date.getHours()) + ':' + padZero(date.getMinutes()) + ':' + padZero(date.getSeconds());",
+             "    var filename =  status + 'Session_' + timestamp + '.csv'",
+             '    if (window.location.protocol == "file:") {',
+             '        console.log("LOCAL" + filename);',
+             '        jsPsych.data.get().localSave("csv", filename);',
+             '    } else { ',
+             '        var xhr = new XMLHttpRequest();',
+             "        xhr.open('POST', 'write_data.php');", # // 'write_data.php' is the path to the php file
+             "        xhr.setRequestHeader('Content-Type', 'application/json');",
+             "        xhr.send(JSON.stringify({filedata: data, filename: 'response_data/' + filename}));",
+             "    }",
              '}')
 
 experiment2js <- function(experiment, preloadedFiles) {
   preamble <- c(
     savefunc,
     '',
+    'var finished = false;',
     "/* initialize jsPsych */",
     "var jsPsych = initJsPsych({",
-    "    on_finish: function() {  saveData(jsPsych.data.get().csv(), 'complete'); },",
-    "    on_close: function() { saveData(jsPsych.data.get().csv(), 'incomplete'); },",
+    "    on_finish: function() {  saveData(jsPsych.data.get().csv(), 'complete'); finished = true; },",
+    "    on_close: function() { if (!finished) { saveData(jsPsych.data.get().csv(), 'incomplete')} ; },",
     "    show_progress_bar: true",
     "});")
   parts <- lapply(experiment@Parts,
