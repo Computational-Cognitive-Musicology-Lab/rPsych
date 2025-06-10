@@ -2,18 +2,21 @@ extensions <- list(audio = c('\\.wav$', '\\.mp3$'),
                    video = c('\\.mp4$', '\\.ogg$', '\\.webm$'),
                    image = c('\\.png$', '\\.jpg$', '\\.jpeg$'))
 
-setGeneric('loadFiles', function(object, directory, stimuliTable) NULL)
+setGeneric('loadFiles', function(object, directory, stimuliTable = NULL) NULL)
 
 setMethod('loadFiles', 'trial',
           \(object, directory, stimuliTable = NULL) { # directory arg not used
             if (grepl('Audio|Video|Image', object@Type)) {
               originalFile <- object@Args$stimulus
-              if (!is.null(stimuliTable)) {
-                if (!originalFile  %in% names(stimuliTable) && any(sapply(unlist(extensions), \(ext) str_detect(originalFile, ext)))) {
-                  object@Args$stimulus <- paste0('stimuli', .Platform$file.sep, basename(originalFile))
+              stimNames <- if (is.null(stimuliTable)) '' else names(stimuliTable)
+                if (originalFile  %in% stimNames) {
                   originalFile <- c()
+                } else {
+                  if (any(sapply(unlist(extensions), \(ext) str_detect(originalFile, ext)))) {
+                        object@Args$stimulus <- paste0('stimuli', .Platform$file.sep, basename(originalFile))
+                  }
+                  
                 }
-              }
               
               list(object = object, files = originalFile)
               
@@ -23,7 +26,7 @@ setMethod('loadFiles', 'trial',
           })
 
 setMethod('loadFiles', 'block',
-          \(object, directory, stimuliTable) { # directory arg not used
+          \(object, directory, stimuliTable = NULL) { # directory arg not used
             trials <- lapply(object@Trials, loadFiles, stimuliTable = object@Stimuli)
             
             object@Trials <- lapply(trials, '[[', i = 'object')
@@ -42,7 +45,7 @@ setMethod('loadFiles', 'block',
 
 setMethod('loadFiles', 'experiment',
           \(object, directory) {
-            parts <- lapply(object@Parts, loadFiles, directory = directory)
+            parts <- lapply(object@Parts, loadFiles)
             
          
             originalFiles <- lapply(parts, '[[', i = 'files') |>

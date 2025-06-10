@@ -13,7 +13,8 @@ trialTypes <- c('keypress/audio', 'button/audio', 'slider/audio',
                 'audio/text', 'button/text', 'keypress/text', 'slider/text', 'video/text',
                 'button/image', 'keypress/image', 'slider/image',
                 'samedifferent/text', 'samedifferent/image',
-                'video/button', 'video/keypress', 'video/slider') |>
+                'video/button', 'video/keypress', 'video/slider',
+                'text/text', 'text/likert', 'text/choice') |>
   strsplit(split = '/') |>
   do.call(what = 'rbind') |>
   as.data.frame() |> 
