@@ -12,7 +12,7 @@ args2js <- function(arg, argname) {
   if (is.null(arg)) return('null')
   if (is.logical(arg)) return(tolower(arg))
   if (class(arg) == 'character') {
-    if (grepl('timelineVariable', arg[1])) return(arg)
+    if (grepl('timelineVariable', arg[1]) || argname == 'questions') return(arg)
     arg <- if (is.null(arg) || is.logical(arg)) {
       tolower(arg)
       } else {
@@ -95,7 +95,7 @@ savefunc <- c('/* function for saving data at the end */',
              "    }",
              '}')
 
-experiment2js <- function(experiment, preloadedFiles) {
+experiment2js <- function(experiment, preload) {
   preamble <- c(
     savefunc,
     '',
@@ -105,12 +105,14 @@ experiment2js <- function(experiment, preloadedFiles) {
     "    on_finish: function() {  saveData(jsPsych.data.get().csv(), 'complete'); finished = true; },",
     "    on_close: function() { if (!finished) { saveData(jsPsych.data.get().csv(), 'incomplete')} ; },",
     "    show_progress_bar: true",
-    "});")
+    "});",
+    '',
+    preload)
   parts <- lapply(experiment@Parts,
                   \(part) if (class(part) == 'trial') trial2js(part) else block2js(part))
   
   post <- c( 
-    paste0('var timeline = [', paste(names(experiment@Parts), collapse = ', ' ), '];'),
+    paste0('var timeline = [', if (length(preload)) 'preload', paste(names(experiment@Parts), collapse = ', ' ), '];'),
     "",
     "/* start the experiment */",
     "jsPsych.run(timeline)",

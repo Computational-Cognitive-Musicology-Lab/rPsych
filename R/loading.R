@@ -59,7 +59,7 @@ setMethod('loadFiles', 'experiment',
                    "files you have indicated as stimuli sources can't be found on your system.",
                    " Did you mispell their names or directory paths?",
                    "\n\t\tThe missing files are:\n", paste(originalFiles[!exist], collapse = '\n\t\t\t'),
-                   .call = FALSE)
+                   call. = FALSE)
             }
             
             

@@ -55,11 +55,7 @@ make <- function(experiment, directory = experiment@Title)  {
   plugins <- lapply(plugins, \(plug) tags$script(src = paste0('https://unpkg.com/@jspsych/plugin-', plug)))
   
   # Generate javascript
-  js <- experiment2js(experiment)
-  
-  ## insert preload js (not a great way to do this)
-  js <- append(js, after = which(js == '')[1], preload)
-  js <- gsub('var timeline = \\[', 'var timeline = [preload, ', js) # insert into timeline
+  js <- experiment2js(experiment, preload$js)
   
   
   # Make html

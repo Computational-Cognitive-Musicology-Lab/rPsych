@@ -14,7 +14,7 @@ trialTypes <- c('keypress/audio', 'button/audio', 'slider/audio',
                 'button/image', 'keypress/image', 'slider/image',
                 'samedifferent/text', 'samedifferent/image',
                 'video/button', 'video/keypress', 'video/slider',
-                'text/text', 'text/likert', 'text/choice') |>
+                'text/text', 'likert/text', 'choice/text') |>
   strsplit(split = '/') |>
   do.call(what = 'rbind') |>
   as.data.frame() |> 
@@ -35,7 +35,16 @@ responseArgs <- list(audio = list(show_done_button = TRUE, allow_playback = FALS
                                           different_key = 'p',
                                           first_stim_duration = 1000,
                                           gap_duration = 500,
-                                          second_stim_duration = 1000))
+                                          second_stim_duration = 1000),
+                     text = list(autocomplete = FALSE, 
+                                 button_label = "Submit"),
+                     choice = list(choices = c('Yes', 'No'), 
+                                   allow_multiple_choices = FALSE, 
+                                   required = TRUE, 
+                                   button_label = 'Submit'),
+                     likert = list(labels = as.character(1:7), 
+                                   scale_width = NULL, 
+                                   button_label = 'Submit'))
 
 stimulusArgs <- list(audio = alist(stimulus = , prompt = NULL, stimulus_duration = NULL,
                                   trial_duration = NULL, trial_ends_after_audio = FALSE, 
@@ -44,7 +53,7 @@ stimulusArgs <- list(audio = alist(stimulus = , prompt = NULL, stimulus_duration
                                   maintain_aspect_ratio = TRUE,
                                   stimulus_duration = NULL, trial_duration = NULL),
                      text = alist(stimulus =,  prompt = NULL, stimulus_duration = NULL,
-                                 trial_duration = NULL),
+                                  trial_duration = NULL, randomize_question_order = TRUE),
                      video = alist(stimulus = , show_done_button = TRUE, allow_playback = TRUE,
                                   recording_duration = 2000)) 
 
@@ -70,8 +79,8 @@ setClass('stimulus', slots = c(Type = 'character', Args = 'list'))
 #' @export
 setMethod('show', 'response',
           \(object) {
-            cat(object@Type, ' response() item:\n',
-                '\tThis can be combined with ', valid_stimuli(object) |> paste(collapse = '/'), ' stimulus() objects.\n', 
+            cat('This is a response$', object@Type, '() item: ',
+                'It can be combined with stimulus$', valid_stimuli(object) |> paste(collapse = '/'), '() objects.\n', 
                 '\tArguments:\n\t\t',
                 paste(paste0(names(object@Args), ' = ', sapply(object@Args, args2js)), collapse = '\n\t\t'), '\n', 
                 sep = '')
@@ -81,8 +90,8 @@ setMethod('show', 'response',
 #' @export
 setMethod('show', 'stimulus',
           \(object) {
-            cat(object@Type, ' stimulus() item:\n',
-                '\tThis can be combined with ', valid_response(object) |> paste(collapse = '/'), ' response() objects.\n', 
+            cat('This is a stimulus$', object@Type, '() item: ',
+                'It can be combined with response$', valid_response(object) |> paste(collapse = '/'), '() objects.\n', 
                 '\tArguments:\n\t\t',
                 paste(paste0(names(object@Args), ' = ', sapply(object@Args, args2js)), collapse = '\n\t\t'), '\n', 
                 sep = '')
@@ -127,26 +136,85 @@ setMethod('show', 'trial',
 ## creating trials ----
 
 ## this is to go from my response/stimulus names to the more verbose names used by jsPsych
-get_jsPsych_type <- function(response, stimulus) {
-  response <- switch(response,  keypress = 'keyboard', response)
-  stimulus <- switch(stimulus, text = 'html', stimulus)
+get_jsPsych_type <- function(response, stimulus, multi = FALSE) {
+  if (!any(response == trialTypes$response & stimulus == trialTypes$stimulus)) {
+    stop("Unfortunately, jsPsych doesn't include a plugin which combines ",
+         response, ' responses with ', stimulus, ' stimuli.', call. = FALSE)
+  }
   
-  type <- paste0('jsPsych', stringr::str_to_title(stimulus), stringr::str_to_title(response), 
-                 'Response')
-  plugin <- paste0(stimulus, '-', response, '-', 'response')
+  response <- switch(response, 
+                     keypress = 'Keyboard',
+                     choice = if (is.null(multi) || !multi) 'Multi-Choice' else 'Multi-Select',
+                     stringr::str_to_sentence(response))
+  stimulus <- switch(stimulus, text = 'Html', 
+                     stringr::str_to_sentence(stimulus))
+  if (response %in% c('Likert', 'Multi-Choice', 'Text', 'Multi-Select') && stimulus == 'Html') {
+    stimulus <- 'Survey'
+    postfix <- ''
+  } else {
+    postfix <- 'Response'
+  }
+  
+  
+  type <- paste0('jsPsych', stimulus, response,  postfix) |> str_remove_all('-')
+  plugin <- paste0(stimulus, '-', response, if (postfix != '') paste0('-', postfix)) |> tolower()
   
   list(Type = type, Plugin = plugin)
   
 }
+
+surveyArgs <- function(response, stimulus, type) {
+  args <- list(preamble = stimulus@Args$prompt)
+  
+  isLikert <- grepl('likert', type$Plugin)
+  
+  questions <- paste0('"', stimulus@Args$stimulus, '"')
+  qnames <- if (is.null(names(questions))) paste0('Question ', seq_along(questions)) else ifelse(names(questions) == '', 
+                                                                                                 paste0('Question ', seq_along(questions)),
+                                                                                                 names(questions))
+  qnames <- paste0('"', qnames, '"')
+  
+  choices <- paste0('[', paste(paste0('"', response@Args[[if (isLikert) 'labels' else 'choices']], '"'), collapse = ', '), ']')
+  choices <- rep(choices, length.out = length(questions))
+  
+  required <- if (length(response@Args$required)) rep(response@Args$required, length.out = length(questions)) |> tolower() 
+  
+  questions <- if (isLikert) {
+    Map(\(prompt, name, options) {
+      paste0('    {\n', paste(paste0(c('        prompt: ', 'name: ', 'labels: '), 
+                                     c(prompt, name, options), 
+                                     ','), 
+                              collapse = '\n        '),
+             '\n    },\n')
+    }, questions, qnames, choices)
+  } else  {
+    Map(\(prompt, name, options, req) {
+      paste0('    {\n', paste(paste0(c('        prompt: ', 'name: ', 'options',  'required: '), 
+                                     c(prompt, name, options, req), 
+                                     ','), 
+                              collapse = '\n        '),
+             '\n    },\n')
+    }, questions, qnames, choices, required)
+      
+  }
+
+  browser()
+  args$questions <- paste0('[\n', paste(unlist(questions), collapse = '\n'), '\n    ]') 
+  args$randomize_question_order <- stimulus@Args$randomize_question_order
+  args
+  
+} 
 
 ### making trials by combining stimulus and response objects ----
 
 #' @export
 setMethod('+', c('response', 'stimulus'),
           \(e1, e2) {
-            type <- get_jsPsych_type(e1@Type, e2@Type)
-            new('trial', Name = 'Trial', Type = type$Type, Plugin = type$Plugin,
-                Args = c(e1@Args, e2@Args))
+            type <- get_jsPsych_type(e1@Type, e2@Type, e1@Args$allow_multiple_choices)
+            
+            args <-  if (grepl('^survey', type$Plugin)) surveyArgs(e1, e2, type) else c(e1@Args, e2@Args)
+            
+            new('trial', Name = 'Trial', Type = type$Type, Plugin = type$Plugin, Args = args)
             
           })
 
@@ -217,7 +285,7 @@ experiment <- function(..., title = 'Unnamed Experiment', author = '') {
   
   parts <- list(...)
   if (is.null(names(parts)) || any(names(parts) == '')) stop("When creating an experiment(), each element of the experiment",
-                                                            "must be explicitely named.", .call = FALSE)
+                                                            "must be explicitely named.", call. = FALSE)
   
   parts <- lapply(parts, \(part) if (class(part) == 'stimulus' && part@Type == 'text') text2trial(part) else part)
   if (!all(sapply(parts, \(part) class(part) %in% c('trial', 'block')))) stop('rPsych experiments must be constructed from only trial and block objects, created using (response() + stimulus()) or block().', call. = FALSE)
