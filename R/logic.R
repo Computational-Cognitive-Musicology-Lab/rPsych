@@ -41,8 +41,9 @@ responseArgs <- list(audio = list(show_done_button = TRUE, allow_playback = FALS
                      choice = list(choices = c('Yes', 'No'), 
                                    allow_multiple_choices = FALSE, 
                                    required = TRUE, 
+                                   horizontal = TRUE,
                                    button_label = 'Submit'),
-                     likert = list(labels = as.character(1:7), 
+                     likert = list(choices = as.character(1:7), 
                                    scale_width = NULL, 
                                    button_label = 'Submit'))
 
@@ -53,7 +54,7 @@ stimulusArgs <- list(audio = alist(stimulus = , prompt = NULL, stimulus_duration
                                   maintain_aspect_ratio = TRUE,
                                   stimulus_duration = NULL, trial_duration = NULL),
                      text = alist(stimulus =,  prompt = NULL, stimulus_duration = NULL,
-                                  trial_duration = NULL, randomize_question_order = TRUE),
+                                  trial_duration = NULL, randomize_question_order = FALSE),
                      video = alist(stimulus = , show_done_button = TRUE, allow_playback = TRUE,
                                   recording_duration = 2000)) 
 
@@ -166,41 +167,43 @@ get_jsPsych_type <- function(response, stimulus, multi = FALSE) {
 surveyArgs <- function(response, stimulus, type) {
   args <- list(preamble = stimulus@Args$prompt)
   
-  isLikert <- grepl('likert', type$Plugin)
+  type <- switch(type$Plugin, 
+                 'survey-likert' = 'likert',
+                 'suvery-multi-select' = , 
+                 'survey-multi-choice' = 'multi',
+                 'survey-text' = 'text')
   
-  questions <- paste0('"', stimulus@Args$stimulus, '"')
-  qnames <- if (is.null(names(questions))) paste0('Question ', seq_along(questions)) else ifelse(names(questions) == '', 
-                                                                                                 paste0('Question ', seq_along(questions)),
-                                                                                                 names(questions))
-  qnames <- paste0('"', qnames, '"')
+  ## prep questions
+  qargs <- list()
+  qargs$questions <- paste0('"', stimulus@Args$stimulus, '"')
+  qargs$names <- local({
+    names <- if (is.null(names(qargs$questions))) rep('null', length(qargs$questions)) else names(qargs$questions)
+    names <- ifelse(names == 'null', 'null', paste0('"', names, '"'))
+    names
+  })
   
-  choices <- paste0('[', paste(paste0('"', response@Args[[if (isLikert) 'labels' else 'choices']], '"'), collapse = ', '), ']')
-  choices <- rep(choices, length.out = length(questions))
+  #
+  qargs$choices <- if (type != 'text') paste0('[', paste(paste0('"', response@Args$choices, '"'), collapse = ', '), ']') |> rep(length.out = length(qargs$questions))
+  qargs$required <- if (length(response@Args$required)) response@Args$required |> tolower() |> rep(length.out = length(qargs$questions)) 
+  qargs$horizontal <- if (type == 'multi') response@Args$horizontal |> tolower() |> rep(length.out = length(qargs$questions))
   
-  required <- if (length(response@Args$required)) rep(response@Args$required, length.out = length(questions)) |> tolower() 
+  names(qargs) <- c('prompt', 'name', if (type == 'likert') 'labels' else 'options', 'required', 'horizontal')[seq_along(qargs)]
+  questions <- do.call('Map',
+                       c(list(f = \(...) {
+                         paste0('    {\n', paste(paste0('        ',
+                                                        names(qargs), 
+                                                        ': ',
+                                                        unlist(list(...)), 
+                                                        ','), 
+                                                 collapse = '\n        '),
+                                '\n    },\n')
+                         }), qargs))
   
-  questions <- if (isLikert) {
-    Map(\(prompt, name, options) {
-      paste0('    {\n', paste(paste0(c('        prompt: ', 'name: ', 'labels: '), 
-                                     c(prompt, name, options), 
-                                     ','), 
-                              collapse = '\n        '),
-             '\n    },\n')
-    }, questions, qnames, choices)
-  } else  {
-    Map(\(prompt, name, options, req) {
-      paste0('    {\n', paste(paste0(c('        prompt: ', 'name: ', 'options',  'required: '), 
-                                     c(prompt, name, options, req), 
-                                     ','), 
-                              collapse = '\n        '),
-             '\n    },\n')
-    }, questions, qnames, choices, required)
-      
-  }
 
-  browser()
   args$questions <- paste0('[\n', paste(unlist(questions), collapse = '\n'), '\n    ]') 
   args$randomize_question_order <- stimulus@Args$randomize_question_order
+  args$autocomplete <- response@Args$autocomplete
+  args$button_label <- response@Args$button_label
   args
   
 } 

@@ -1,7 +1,7 @@
 Package: jsPsychr
 Type: Package
 Title: Create experimental interfaces using R 
-Version: 0.1.0
+Version: 0.1.5
 Authors@R: c(
     person(
       "Nat", "Condit-Schultz",

@@ -5,10 +5,7 @@
 \alias{run}
 \title{Compile experiment to html/javascript}
 \usage{
-make(
-  experiment,
-  filename = str_to_title(str_remove_all(experiment@Title, "\\\\s*"))
-)
+make(experiment, directory = experiment@Title)
 
 run(x, ...)
 }
