@@ -35,7 +35,7 @@ trial2js <- function(trial) {
 
 block2js <- function(block) {
 
-  stimuli <- lapply(block@Stimuli, \(stim) paste0('"', stim, '"'))
+  stimuli <- lapply(block@Stimuli, \(stim) paste0('"stimuli/', stim, '"'))
     
   stimuli <- Map(names(stimuli), stimuli, f = \(n, s) paste0(n, ': ', s))
   stimuli <- do.call('paste', c(list(sep = ', '), stimuli))

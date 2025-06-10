@@ -1,10 +1,15 @@
-setGeneric('loadFiles', function(object, directory) NULL)
+setGeneric('loadFiles', function(object, directory, stimuliTable) NULL)
 
 setMethod('loadFiles', 'trial',
-          \(object, directory) { # directory arg not used
+          \(object, directory, stimuliTable = NULL) { # directory arg not used
             if (grepl('Audio|Video|Image', object@Type)) {
               originalFile <- object@Args$stimulus
-              object@Args$stimulus <- paste0('stimuli', .Platform$file.sep, basename(originalFile))
+              if (!is.null(stimuliTable)) {
+                if (!originalFile  %in% names(stimuliTable)) {
+                  object@Args$stimulus <- paste0('stimuli', .Platform$file.sep, basename(originalFile))
+                  originalFile <- c()
+                }
+              }
               
               list(object = object, files = originalFile)
               
@@ -14,8 +19,8 @@ setMethod('loadFiles', 'trial',
           })
 
 setMethod('loadFiles', 'block',
-          \(object, directory) { # directory arg not used
-            trials <- lapply(object@Trials, loadFiles)
+          \(object, directory, stimuliTable) { # directory arg not used
+            trials <- lapply(object@Trials, loadFiles, stimuliTable = object@Stimuli)
             
             object@Trials <- lapply(trials, '[[', i = 'object')
             originalFiles <- lapply(trials, '[[', i = 'files') |>
