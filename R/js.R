@@ -75,14 +75,22 @@ block2js <- function(block) {
   
 }
 
+savefunc <- c('/* function for saving data at the end */',
+             'function saveData(name, data){',
+             '    var xhr = new XMLHttpRequest();',
+             "    xhr.open('POST', 'write_data.php');", # // 'write_data.php' is the path to the php file
+             "    xhr.setRequestHeader('Content-Type', 'application/json');",
+             "    xhr.send(JSON.stringify({filedata: data}));",
+             '}')
 
-experiment2js <- function(experiment) {
+experiment2js <- function(experiment, preloadedFiles) {
   preamble <- c(
+    savefunc,
+    '',
     "/* initialize jsPsych */",
     "var jsPsych = initJsPsych({",
-    "    on_finish: function() {",
-    "    jsPsych.data.displayData();",
-    "    }",
+    "    on_finish: function() {  saveData(jsPsych.data.get().csv()); },",
+    "    show_progress_bar: true",
     "});")
   parts <- lapply(experiment@Parts,
                   \(part) if (class(part) == 'trial') trial2js(part) else block2js(part))

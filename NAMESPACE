@@ -2,7 +2,7 @@
 
 export(block)
 export(experiment)
-export(jsPsych)
+export(jsPsych_info)
 export(make)
 export(response)
 export(run)

@@ -1,4 +1,4 @@
-Package: rPsych
+Package: jsPsychr
 Type: Package
 Title: Create experimental interfaces using R 
 Version: 0.1.0
@@ -17,7 +17,7 @@ Encoding: UTF-8
 Collate:
   logic.R
   js.R
-  html.R
+  make.R
   loading.R
 LazyData: true
 Depends: htmltools, dplyr, stringr, rlang
